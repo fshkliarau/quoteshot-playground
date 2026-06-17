@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "QuoteShot Playground",
+    "slug": "quoteshot-playground",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "baseUrl": ""
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}
