@@ -29,12 +29,21 @@ npm run web        # http://localhost:8081
 ## Controls — DialKit
 
 The right sidebar is driven by [DialKit](https://github.com/joshpuckett/dialkit).
-A single `useDialKit('QuoteShot', schema, { onAction })` call in `App.js` is the one
-source of truth: its `schema` declares every control (style/ratio/color, transparent
-toggle, quote length+text, attribution, cover, the token sliders, and `savePNG` /
-`copyJSON` / `reset` actions), and the returned `params` feed straight into
-`<QuoteShot/>`, the top bar, and the "Locked values" JSON readout. `<DialRoot
-mode="inline" theme="light" />` renders the panel inline in the sidebar.
+A single `useDialKit('QuoteShot', schema, { onAction })` call in `App.js` declares
+style/ratio, quote length+text, attribution, cover, the token sliders, and `savePNG`
+/ `copyJSON` / `reset` actions; the returned `params` feed `<QuoteShot/>`, the header,
+and the "Locked values" JSON readout. `<DialRoot mode="inline" theme="light" />`
+renders that panel inline in the sidebar.
+
+Two things are deliberately NOT in the DialKit schema:
+
+- **Color** is the custom per-style `Swatches` grid (with a checkerboard **None**
+  swatch for transparent/sticker output) — DialKit has no swatch-palette control, and
+  the palette depends on the selected style. It lives in React state and the "None"
+  swatch replaces a separate transparent toggle.
+- **Header** (Single/Grid, Light/Dark bg, Copy text, Save PNG) is hand-laid-out but
+  built from DialKit's exported `SegmentedControl` + `dialkit-button`s, wrapped in a
+  `.dialkit-root` so its CSS variables resolve.
 
 Two non-obvious things were needed to run DialKit inside Expo + Metro:
 
@@ -48,7 +57,8 @@ Two non-obvious things were needed to run DialKit inside Expo + Metro:
 - **Segmented selects.** DialKit renders `select` controls as dropdowns with no
   config flag to change it. `patches/dialkit+1.2.1.patch` (applied by `patch-package`
   via the `postinstall` script) rewrites its `SelectControl` to render the built-in
-  `SegmentedControl` instead, so Style/Ratio/Length/Cover are segmented pills.
+  `SegmentedControl` instead (so Style/Ratio/Length/Cover are segmented pills), and
+  also adds `SegmentedControl` to the package exports so the header can reuse it.
 
 ## The component — `src/QuoteShot.js`
 

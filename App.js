@@ -6,8 +6,8 @@
 // The ONLY thing that ships to production is <QuoteShot/> (src/QuoteShot.js).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Platform } from 'react-native';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
 import { useFonts, SourceSerif4_600SemiBold } from '@expo-google-fonts/source-serif-4';
 import {
   AlbertSans_500Medium,
@@ -21,11 +21,11 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
-import { DialRoot, useDialKit, DialStore } from 'dialkit';
+import { DialRoot, useDialKit, DialStore, SegmentedControl } from 'dialkit';
 import 'dialkit/dist/styles.css';
 
 import QuoteShot from './src/QuoteShot';
-import { UI, Button } from './src/panel/controls';
+import { UI, Button, Swatches, Section } from './src/panel/controls';
 import { savePng, copyText } from './src/exporter';
 import {
   PALETTES,
@@ -41,11 +41,11 @@ const APP_BG = { light: UI.bg, dark: '#1C1B19' };
 const GRID_SCALE = 0.42;
 
 // ── DialKit schema — the single source of truth for the control panel ──────────
+// color + transparency are handled by the custom Swatches grid (the "None" swatch
+// is the transparent/sticker control), so they are NOT in the DialKit schema.
 const DIAL_CONFIG = {
   style: { type: 'select', options: ['minimal', 'bookshot', 'highlighter'], default: 'bookshot' },
   ratio: { type: 'select', options: ['narrow', 'square', 'tall'], default: 'square' },
-  color: '#292e38', // color picker
-  transparentBg: false, // toggle
 
   quote: {
     length: { type: 'select', options: ['short', 'medium', 'long'], default: 'medium' },
@@ -75,16 +75,27 @@ const DIAL_CONFIG = {
   reset: { type: 'action', label: 'Reset' },
 };
 
-// reset the token sliders (+ transparency) back to their schema defaults
+// reset the token sliders back to their schema defaults
 const TOKEN_DEFAULTS = { padding: 16, cornerRadius: 12, fontScale: 1, quoteMarkScale: 1, coverScale: 0.4, highlightOpacity: 0.55 };
 function resetDialTokens() {
   const panel = DialStore.getPanels().find((p) => p.name === 'QuoteShot');
   if (!panel) return;
   Object.entries(TOKEN_DEFAULTS).forEach(([k, v]) => DialStore.updateValue(panel.id, `tokens.${k}`, v));
-  DialStore.updateValue(panel.id, 'transparentBg', false);
 }
 
 const coverUriFor = (name) => (COVER_PRESETS.find((c) => c.name.toLowerCase() === name) || COVER_PRESETS[2]).uri;
+
+// header segmented options (rendered with DialKit's SegmentedControl)
+const VIEW_OPTS = [{ value: 'single', label: 'Single' }, { value: 'grid', label: 'Grid' }];
+const BG_OPTS = [{ value: 'light', label: 'Light bg' }, { value: 'dark', label: 'Dark bg' }];
+const HEADER_STYLE = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  padding: '11px 20px',
+  borderBottom: `1px solid ${UI.border}`,
+  background: UI.surface,
+};
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -104,6 +115,11 @@ export default function App() {
   const [appBg, setAppBg] = useState('light');
   const [toast, setToast] = useState('');
 
+  // color + transparency live in React state (driven by the custom Swatches grid)
+  const [color, setColor] = useState(PALETTES.bookshot[0].value); // bookshot Dark — matches default style
+  const [transparentBg, setTransparentBg] = useState(false);
+  const [textColor, setTextColor] = useState('auto'); // 'auto' | 'dark' | 'light' (sticker text)
+
   const captureRef = useRef(null);
   const flash = useCallback((msg) => {
     setToast(msg);
@@ -111,19 +127,41 @@ export default function App() {
   }, []);
 
   // actions fire from DialKit; route them through a ref so they always see the
-  // latest derived values (lockedJson, transparentBg) without re-subscribing.
+  // latest derived values without re-subscribing.
   const actionRef = useRef(() => {});
   const onAction = useCallback((a) => actionRef.current(a), []);
 
-  // ── the entire control panel: one DialKit call drives every value ──
+  // ── DialKit drives style / ratio / quote / attribution / cover / tokens / actions ──
   const params = useDialKit('QuoteShot', DIAL_CONFIG, { onAction });
-
-  // map DialKit params → QuoteShot props
   const style = params.style;
   const ratio = params.ratio;
-  const color = params.color;
-  const transparentBg = params.transparentBg;
-  const tokens = params.tokens; // { padding, cornerRadius, fontScale, quoteMarkScale, coverScale, highlightOpacity }
+
+  // picking a color turns transparency off; "None" toggles transparency, then flips text B/W
+  const selectColor = useCallback((value) => {
+    setColor(value);
+    setTransparentBg(false);
+    setTextColor('auto');
+  }, []);
+  const toggleNone = useCallback(() => {
+    setTransparentBg((on) => {
+      if (!on) {
+        setTextColor('dark');
+        return true;
+      }
+      setTextColor((t) => (t === 'light' ? 'dark' : 'light'));
+      return true;
+    });
+  }, []);
+
+  // changing Style swaps the palette → reset color to the first swatch
+  useEffect(() => {
+    setColor(PALETTES[style][0].value);
+    setTransparentBg(false);
+    setTextColor('auto');
+  }, [style]);
+
+  const stickerScheme = textColor === 'light' ? 'light' : 'dark';
+  const tokens = { ...params.tokens, textColor };
   const quoteText =
     params.quote.text && params.quote.text.trim() ? params.quote.text : QUOTE_PRESETS[params.quote.length];
   const coverUri = coverUriFor(params.cover);
@@ -145,13 +183,13 @@ export default function App() {
     const found = PALETTES[style].find((c) => c.value.toLowerCase() === String(color).toLowerCase());
     return found ? found.name : color;
   })();
-
   const lockedJson = JSON.stringify({ style, ratio, color, transparentBg, tokens }, null, 2);
+  const fileName = `quoteshot-${style}-${ratio}-${String(colorName).toLowerCase()}`;
 
   const doExport = useCallback(
-    async (transparent, fileName) => {
+    async (transparent, name) => {
       try {
-        await savePng(captureRef, { transparent, fileName });
+        await savePng(captureRef, { transparent, fileName: name });
         flash(transparent ? 'Saved transparent PNG' : 'Saved PNG');
       } catch (e) {
         flash('Export failed: ' + (e && e.message ? e.message : e));
@@ -162,9 +200,14 @@ export default function App() {
 
   // keep the action handler pointed at the latest values every render
   actionRef.current = (a) => {
-    if (a === 'savePNG') doExport(transparentBg, `quoteshot-${style}-${ratio}-${String(colorName).toLowerCase()}`);
+    if (a === 'savePNG') doExport(transparentBg, fileName);
     else if (a === 'copyJSON') copyText(lockedJson).then(() => flash('JSON copied'));
-    else if (a === 'reset') resetDialTokens();
+    else if (a === 'reset') {
+      resetDialTokens();
+      setColor(PALETTES[style][0].value);
+      setTransparentBg(false);
+      setTextColor('auto');
+    }
   };
 
   if (!fontsLoaded) {
@@ -179,19 +222,26 @@ export default function App() {
     <View style={styles.root}>
       {/* ── Stage ── */}
       <View style={styles.stage}>
-        <View style={styles.toolbar}>
-          <Tabs value={view} onChange={setView} options={[{ value: 'single', label: 'Single' }, { value: 'grid', label: 'Grid' }]} />
-          <Tabs value={appBg} onChange={setAppBg} options={[{ value: 'light', label: 'Light bg' }, { value: 'dark', label: 'Dark bg' }]} />
-          <View style={{ flex: 1 }} />
-          <View style={styles.exportRow}>
-            <Button label="Copy text" variant="ghost" onPress={async () => { await copyText(quoteText); flash('Quote copied'); }} />
-            {transparentBg ? (
-              <Button label="Save transparent PNG" variant="primary" onPress={() => doExport(true, `quoteshot-${style}-${ratio}-${String(colorName).toLowerCase()}`)} />
-            ) : (
-              <Button label="Save PNG" variant="primary" onPress={() => doExport(false, `quoteshot-${style}-${ratio}-${String(colorName).toLowerCase()}`)} />
-            )}
-          </View>
-        </View>
+        {/* ── Header — DialKit segmented toggles + buttons ── */}
+        <div className="dialkit-root" data-theme="light" style={HEADER_STYLE}>
+          <SegmentedControl value={view} options={VIEW_OPTS} onChange={setView} />
+          <SegmentedControl value={appBg} options={BG_OPTS} onChange={setAppBg} />
+          <div style={{ flex: 1 }} />
+          <button
+            className="dialkit-button"
+            style={{ width: 'auto', flex: 'none', whiteSpace: 'nowrap' }}
+            onClick={async () => { await copyText(quoteText); flash('Quote copied'); }}
+          >
+            Copy text
+          </button>
+          <button
+            className="dialkit-button"
+            style={{ width: 'auto', flex: 'none', whiteSpace: 'nowrap', background: UI.accent, color: '#fff', borderColor: UI.accent }}
+            onClick={() => doExport(transparentBg, fileName)}
+          >
+            {transparentBg ? 'Save transparent PNG' : 'Save PNG'}
+          </button>
+        </div>
 
         <ScrollView
           style={{ flex: 1, backgroundColor: UI.bg }}
@@ -236,8 +286,20 @@ export default function App() {
         ) : null}
       </View>
 
-      {/* ── Control panel: DialKit inline, in the right sidebar ── */}
+      {/* ── Control panel: custom Color swatches + DialKit inline ── */}
       <aside style={{ width: 340, height: '100vh', overflow: 'auto', flexShrink: 0, borderLeft: `1px solid ${UI.border}`, background: UI.surface }}>
+        <View style={styles.colorSection}>
+          <Section title="Color">
+            <Swatches
+              palette={PALETTES[style]}
+              value={color}
+              onChange={selectColor}
+              transparentOn={transparentBg}
+              onNone={toggleNone}
+              stickerScheme={stickerScheme}
+            />
+          </Section>
+        </View>
         <DialRoot mode="inline" theme="light" />
       </aside>
     </View>
@@ -305,21 +367,6 @@ function Scaled({ scale, w, h, children }) {
   );
 }
 
-function Tabs({ value, onChange, options }) {
-  return (
-    <View style={styles.tabs}>
-      {options.map((o) => {
-        const sel = o.value === value;
-        return (
-          <Pressable key={o.value} onPress={() => onChange(o.value)} style={[styles.tab, sel && styles.tabSel]}>
-            <Text style={[styles.tabText, sel && styles.tabTextSel]}>{o.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 const web = (o) => (Platform.OS === 'web' ? o : {});
 
 const F = UI.F;
@@ -329,17 +376,6 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: UI.bg, ...web({ height: '100vh' }) },
 
   stage: { flex: 1, minWidth: 0 },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: UI.border,
-    backgroundColor: UI.surface,
-  },
-  exportRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   stageScroll: { padding: 36, alignItems: 'center', minHeight: '100%' },
 
   singleWrap: { alignItems: 'center', justifyContent: 'center', paddingVertical: 28, alignSelf: 'stretch' },
@@ -381,12 +417,8 @@ const styles = StyleSheet.create({
 
   offscreen: { position: 'absolute', left: -10000, top: 0, opacity: 1 },
 
-  // toolbar segmented tabs — same language as panel Segmented
-  tabs: { flexDirection: 'row', backgroundColor: UI.inset, borderRadius: 12, padding: 4, gap: 4 },
-  tab: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9, borderWidth: 1, borderColor: 'transparent' },
-  tabSel: { backgroundColor: UI.surface, borderColor: UI.border },
-  tabText: { fontFamily: F.med, fontSize: 12.5, color: UI.textSec },
-  tabTextSel: { fontFamily: F.semi, color: UI.text },
+  // custom Color swatches section above the DialKit panel
+  colorSection: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 4 },
 
   toast: {
     position: 'absolute',
