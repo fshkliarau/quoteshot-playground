@@ -7,7 +7,8 @@
     "start": "expo start",
     "web": "expo start --web",
     "build": "expo export --platform web --output-dir dist",
-    "build:pages": "EXPO_BASE_URL=/quoteshot-playground expo export --platform web --output-dir dist"
+    "build:pages": "EXPO_BASE_URL=/quoteshot-playground expo export --platform web --output-dir dist",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo-google-fonts/albert-sans": "^0.2.3",
@@ -31,6 +32,7 @@
     "react-native-web": "~0.19.13"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2"
+    "@babel/core": "^7.25.2",
+    "patch-package": "^8.0.1"
   }
 }

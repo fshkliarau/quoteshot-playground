@@ -45,6 +45,10 @@ Two non-obvious things were needed to run DialKit inside Expo + Metro:
 - **CSS path.** Import the stylesheet as `import 'dialkit/dist/styles.css'` (the
   package-`exports` subpath `dialkit/styles.css` doesn't resolve through Metro). It is
   bundled into the static web export automatically.
+- **Segmented selects.** DialKit renders `select` controls as dropdowns with no
+  config flag to change it. `patches/dialkit+1.2.1.patch` (applied by `patch-package`
+  via the `postinstall` script) rewrites its `SelectControl` to render the built-in
+  `SegmentedControl` instead, so Style/Ratio/Length/Cover are segmented pills.
 
 ## The component — `src/QuoteShot.js`
 
