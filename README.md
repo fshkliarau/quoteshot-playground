@@ -26,6 +26,26 @@ npm install
 npm run web        # http://localhost:8081
 ```
 
+## Controls — DialKit
+
+The right sidebar is driven by [DialKit](https://github.com/joshpuckett/dialkit).
+A single `useDialKit('QuoteShot', schema, { onAction })` call in `App.js` is the one
+source of truth: its `schema` declares every control (style/ratio/color, transparent
+toggle, quote length+text, attribution, cover, the token sliders, and `savePNG` /
+`copyJSON` / `reset` actions), and the returned `params` feed straight into
+`<QuoteShot/>`, the top bar, and the "Locked values" JSON readout. `<DialRoot
+mode="inline" theme="light" />` renders the panel inline in the sidebar.
+
+Two non-obvious things were needed to run DialKit inside Expo + Metro:
+
+- **`import.meta` shim.** DialKit's prebuilt bundle uses `import.meta`, which Metro
+  emits into a classic (non-module) script → a parse-time `SyntaxError` that silently
+  kills the whole bundle. `babel.config.js` includes a tiny plugin that rewrites every
+  `import.meta` to `{}` (the dialkit guards stay correct). Applies to dev and export.
+- **CSS path.** Import the stylesheet as `import 'dialkit/dist/styles.css'` (the
+  package-`exports` subpath `dialkit/styles.css` doesn't resolve through Metro). It is
+  bundled into the static web export automatically.
+
 ## The component — `src/QuoteShot.js`
 
 The only thing that ships. Pure RN (`react-native` + `react-native-svg` +
