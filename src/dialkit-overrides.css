@@ -1,0 +1,10 @@
+/* The Style / Ratio / Color controls are rendered above DialRoot (so Color can sit
+   right under Ratio). Hide DialRoot's own root panel header (the "QuoteShot" title +
+   version/preset toolbar) so the two read as one continuous panel, and drop the
+   panel's top padding so it abuts the custom block. */
+.dialkit-panel-header {
+  display: none !important;
+}
+.dialkit-panel-inner {
+  padding-top: 0 !important;
+}

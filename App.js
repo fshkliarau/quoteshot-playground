@@ -21,11 +21,12 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
-import { DialRoot, useDialKit, DialStore, SegmentedControl } from 'dialkit';
+import { DialRoot, useDialKit, DialStore, SegmentedControl, SelectControl } from 'dialkit';
 import 'dialkit/dist/styles.css';
+import './src/dialkit-overrides.css';
 
 import QuoteShot from './src/QuoteShot';
-import { UI, Button, Swatches, Section } from './src/panel/controls';
+import { UI, Button, Swatches } from './src/panel/controls';
 import { savePng, copyText } from './src/exporter';
 import {
   PALETTES,
@@ -41,12 +42,9 @@ const APP_BG = { light: UI.bg, dark: '#1C1B19' };
 const GRID_SCALE = 0.42;
 
 // ── DialKit schema — the single source of truth for the control panel ──────────
-// color + transparency are handled by the custom Swatches grid (the "None" swatch
-// is the transparent/sticker control), so they are NOT in the DialKit schema.
+// Style / Ratio / Color are rendered above DialRoot (so Color sits under Ratio),
+// so they are NOT in the DialKit schema — DialRoot drives the rest.
 const DIAL_CONFIG = {
-  style: { type: 'select', options: ['minimal', 'bookshot', 'highlighter'], default: 'bookshot' },
-  ratio: { type: 'select', options: ['narrow', 'square', 'tall'], default: 'square' },
-
   quote: {
     length: { type: 'select', options: ['short', 'medium', 'long'], default: 'medium' },
     text: { type: 'text', default: '', placeholder: 'Quote text...' },
@@ -85,9 +83,11 @@ function resetDialTokens() {
 
 const coverUriFor = (name) => (COVER_PRESETS.find((c) => c.name.toLowerCase() === name) || COVER_PRESETS[2]).uri;
 
-// header segmented options (rendered with DialKit's SegmentedControl)
+// header + panel segmented options (rendered with DialKit components)
 const VIEW_OPTS = [{ value: 'single', label: 'Single' }, { value: 'grid', label: 'Grid' }];
 const BG_OPTS = [{ value: 'light', label: 'Light bg' }, { value: 'dark', label: 'Dark bg' }];
+const STYLE_OPTS = [{ value: 'minimal', label: 'Minimal' }, { value: 'bookshot', label: 'Bookshot' }, { value: 'highlighter', label: 'Highlighter' }];
+const RATIO_OPTS = [{ value: 'narrow', label: 'Narrow' }, { value: 'square', label: 'Square' }, { value: 'tall', label: 'Tall' }];
 const HEADER_STYLE = {
   display: 'flex',
   alignItems: 'center',
@@ -115,7 +115,9 @@ export default function App() {
   const [appBg, setAppBg] = useState('light');
   const [toast, setToast] = useState('');
 
-  // color + transparency live in React state (driven by the custom Swatches grid)
+  // Style / Ratio / Color live in React state (rendered above the DialKit panel)
+  const [style, setStyle] = useState('bookshot');
+  const [ratio, setRatio] = useState('square');
   const [color, setColor] = useState(PALETTES.bookshot[0].value); // bookshot Dark — matches default style
   const [transparentBg, setTransparentBg] = useState(false);
   const [textColor, setTextColor] = useState('auto'); // 'auto' | 'dark' | 'light' (sticker text)
@@ -131,10 +133,8 @@ export default function App() {
   const actionRef = useRef(() => {});
   const onAction = useCallback((a) => actionRef.current(a), []);
 
-  // ── DialKit drives style / ratio / quote / attribution / cover / tokens / actions ──
+  // ── DialKit drives quote / attribution / cover / tokens / actions ──
   const params = useDialKit('QuoteShot', DIAL_CONFIG, { onAction });
-  const style = params.style;
-  const ratio = params.ratio;
 
   // picking a color turns transparency off; "None" toggles transparency, then flips text B/W
   const selectColor = useCallback((value) => {
@@ -286,20 +286,25 @@ export default function App() {
         ) : null}
       </View>
 
-      {/* ── Control panel: custom Color swatches + DialKit inline ── */}
+      {/* ── Control panel: Style / Ratio / Color above the (headerless) DialKit panel ── */}
       <aside style={{ width: 340, height: '100vh', overflow: 'auto', flexShrink: 0, borderLeft: `1px solid ${UI.border}`, background: UI.surface }}>
-        <View style={styles.colorSection}>
-          <Section title="Color">
-            <Swatches
-              palette={PALETTES[style]}
-              value={color}
-              onChange={selectColor}
-              transparentOn={transparentBg}
-              onNone={toggleNone}
-              stickerScheme={stickerScheme}
-            />
-          </Section>
-        </View>
+        <div className="dialkit-root" data-theme="light" style={{ padding: '12px 12px 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <SelectControl label="Style" value={style} options={STYLE_OPTS} onChange={setStyle} />
+            <SelectControl label="Ratio" value={ratio} options={RATIO_OPTS} onChange={setRatio} />
+            <div style={{ background: 'rgba(0,0,0,0.04)', borderRadius: 8, padding: '12px' }}>
+              <span className="dialkit-labeled-control-label" style={{ display: 'block', marginBottom: 12 }}>Color</span>
+              <Swatches
+                palette={PALETTES[style]}
+                value={color}
+                onChange={selectColor}
+                transparentOn={transparentBg}
+                onNone={toggleNone}
+                stickerScheme={stickerScheme}
+              />
+            </div>
+          </div>
+        </div>
         <DialRoot mode="inline" theme="light" />
       </aside>
     </View>
@@ -416,9 +421,6 @@ const styles = StyleSheet.create({
   inspectorHint: { fontFamily: F.ui, fontSize: 11.5, color: UI.textSec, marginTop: 10 },
 
   offscreen: { position: 'absolute', left: -10000, top: 0, opacity: 1 },
-
-  // custom Color swatches section above the DialKit panel
-  colorSection: { paddingHorizontal: 22, paddingTop: 22, paddingBottom: 4 },
 
   toast: {
     position: 'absolute',

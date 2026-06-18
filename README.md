@@ -29,20 +29,22 @@ npm run web        # http://localhost:8081
 ## Controls — DialKit
 
 The right sidebar is driven by [DialKit](https://github.com/joshpuckett/dialkit).
-A single `useDialKit('QuoteShot', schema, { onAction })` call in `App.js` declares
-style/ratio, quote length+text, attribution, cover, the token sliders, and `savePNG`
-/ `copyJSON` / `reset` actions; the returned `params` feed `<QuoteShot/>`, the header,
-and the "Locked values" JSON readout. `<DialRoot mode="inline" theme="light" />`
-renders that panel inline in the sidebar.
+A `useDialKit('QuoteShot', schema, { onAction })` call in `App.js` declares quote
+length+text, attribution, cover, the token sliders, and `savePNG` / `copyJSON` /
+`reset` actions; the returned `params` feed `<QuoteShot/>` and the "Locked values"
+JSON readout. `<DialRoot mode="inline" theme="light" />` renders that panel inline.
 
-Two things are deliberately NOT in the DialKit schema:
+Some controls are rendered outside the schema for layout/styling control, but still
+use DialKit's components so everything matches:
 
-- **Color** is the custom per-style `Swatches` grid (with a checkerboard **None**
-  swatch for transparent/sticker output) — DialKit has no swatch-palette control, and
-  the palette depends on the selected style. It lives in React state and the "None"
-  swatch replaces a separate transparent toggle.
-- **Header** (Single/Grid, Light/Dark bg, Copy text, Save PNG) is hand-laid-out but
-  built from DialKit's exported `SegmentedControl` + `dialkit-button`s, wrapped in a
+- **Style / Ratio / Color** sit *above* `DialRoot` (so Color can be a swatch grid
+  directly under Ratio). Style/Ratio use DialKit's exported `SelectControl`; Color is
+  the custom per-style `Swatches` grid (with a checkerboard **None** swatch that
+  replaces a separate transparent toggle — DialKit has no swatch-palette control and
+  the palette depends on the style). They live in React state. `DialRoot`'s own panel
+  header is hidden (`src/dialkit-overrides.css`) so the two read as one panel.
+- **Header** (Single/Grid, Light/Dark bg, Copy text, Save PNG) is hand-laid-out from
+  DialKit's exported `SegmentedControl` + `dialkit-button`s, wrapped in a
   `.dialkit-root` so its CSS variables resolve.
 
 Two non-obvious things were needed to run DialKit inside Expo + Metro:
