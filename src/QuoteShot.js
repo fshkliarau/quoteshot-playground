@@ -351,7 +351,7 @@ export default function QuoteShot(props) {
     <View style={card}>
       <View style={styles.minimalQuote}>
         {t.quoteMarkScale > 0 ? (
-          <View style={{ marginBottom: 4 }}>
+          <View style={{ marginRight: 10, marginTop: 2, alignSelf: 'flex-start' }}>
             <QuoteMark color={markGlyph} size={markSize} />
           </View>
         ) : null}
@@ -377,9 +377,9 @@ const styles = StyleSheet.create({
   // footer is always pinned to the bottom and the two never overlap.
   card: { overflow: 'hidden' },
   // the measured fill slot — takes the leftover height, clips nothing it sizes to
-  fillSlot: { flex: 1, width: '100%', overflow: 'hidden' },
+  fillSlot: { flex: 1, overflow: 'hidden' },
   // minimal wraps the quote mark above the fill slot
-  minimalQuote: { flex: 1, width: '100%' },
+  minimalQuote: { flex: 1, width: '100%', flexDirection: 'row', alignItems: 'stretch' },
   // footers pinned to the bottom (with a gap from the quote above)
   chipFooter: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
   bookshotFooter: { flexDirection: 'row', alignItems: 'flex-end', gap: 16, marginTop: 12 },
