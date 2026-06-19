@@ -305,7 +305,9 @@ export default function App() {
             </div>
           </div>
         </div>
-        <DialRoot mode="inline" theme="light" />
+        {/* productionEnabled: DialKit hides itself in production by default; this
+            playground IS the production app, so keep the panel rendered. */}
+        <DialRoot mode="inline" theme="light" productionEnabled />
       </aside>
     </View>
   );
